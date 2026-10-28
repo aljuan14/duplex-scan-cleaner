@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Susun Halaman</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  .doc-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 14px 20px; border-top: 1px solid var(--line); background: var(--subtle);
+    border-radius: 0 0 var(--radius) var(--radius); flex-wrap: wrap; }
+  .row input.name { flex: 1; min-width: 0; }
+  .seq { display: flex; flex-wrap: wrap; gap: 14px 0; padding: 18px 12px; }
+  .unit { display: flex; }
+  .slot { width: 26px; display: flex; align-items: stretch; justify-content: center; }
+  .slot button { width: 22px; padding: 0; border-radius: 6px; border: 1px dashed transparent; background: transparent; color: var(--faint); }
+  .slot button:hover, .slot.target button { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .tile { width: 118px; position: relative; border: 1.5px solid var(--line); border-radius: 8px; background: var(--panel);
+    padding: 6px; cursor: grab; user-select: none; transition: box-shadow .12s, opacity .12s; }
+  .tile:hover { box-shadow: 0 2px 8px rgba(15, 23, 42, .08); }
+  .tile.new { border-color: var(--accent); background: var(--accent-soft); }
+  .tile.dragging { opacity: .35; }
+  .tile.over { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tile img { display: block; width: 100%; aspect-ratio: 1 / 1.414; object-fit: contain; border-radius: 4px; background: #fff; border: 1px solid var(--line); pointer-events: none; }
+  .tile .num { font-weight: 600; font-size: 12px; color: var(--text-2); }
+  .tile .src { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile.new .src { color: var(--accent); }
+  .tile .meta { margin-top: 6px; line-height: 1.35; }
+  .tile .badge-new { position: absolute; top: 10px; left: 10px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; }
+  .tile .tools { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; opacity: 0; transition: opacity .12s; }
+  .tile:hover .tools { opacity: 1; }
+  .tile .tools button { width: 28px; height: 28px; padding: 0; border-radius: 6px; box-shadow: var(--shadow); }
+  .tile .tools button.del:hover { color: var(--drop); border-color: var(--drop-line); background: var(--drop-soft); }
+  .add-end { width: 118px; border: 1.5px dashed var(--line-2); border-radius: 8px; background: var(--subtle); color: var(--muted);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; min-height: 190px; }
+  .add-end:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .add-end svg.i { width: 22px; height: 22px; }
+
+  #insert .body { padding: 16px 20px; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+  .seg { display: inline-flex; background: var(--subtle); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+  .seg label { padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 500; }
+  .seg input { display: none; }
+  .seg label:has(input:checked) { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+  .opt-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--text-2); font-weight: 500; }
+  #insDrop { border: 1.5px dashed var(--line-2); border-radius: 10px; padding: 22px; text-align: center; background: var(--subtle); color: var(--muted); cursor: pointer; }
+  #insDrop.over { border-color: var(--accent); background: var(--accent-soft); }
+  #insDrop b { color: var(--text); display: block; margin-bottom: 2px; }
+  .items { display: flex; flex-direction: column; gap: 8px; }
+  .item { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .item img { width: 38px; height: 54px; object-fit: contain; border: 1px solid var(--line); border-radius: 3px; background: #fff; flex: none; }
+  .item .info { flex: 1; min-width: 0; }
+  .item .info b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .info span { font-size: 12px; color: var(--muted); }
+  .item .info span.err { color: var(--drop); }
+  .item input { width: 150px; font-size: 13px; padding: 5px 8px; }
+  .item input.bad { border-color: var(--drop); outline-color: var(--drop-line); }
+  .empty-note { color: var(--faint); font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="m9 14 2 2 4-4"/></svg></div>
+    <div class="brand"><b>Pembersih Scan</b><span>Alat bantu dokumen hasil scan</span></div>
+    <nav class="tabs"><a href="/">Bersihkan Scan</a><a href="/susun" class="on">Susun Halaman</a></nav>
+  </div>
+</header>
+
+<div id="offline">Tidak terhubung ke aplikasi. Jalankan <code>bersihkan-scan</code> di terminal
+  (atau buka <b>Pembersih Scan</b> dari menu aplikasi), lalu muat ulang halaman ini.</div>
+
+<main class="wrap">
+  <div class="intro">
+    <h1>Susun halaman PDF</h1>
+    <p>Sisipkan PDF lain atau gambar (JPG/PNG) di halaman tertentu, hapus halaman, dan ubah urutannya. File asli tidak diubah.</p>
+  </div>
+
+  <!-- langkah 1: buka PDF dasar -->
+  <section class="panel" id="start">
+    <div id="drop">
+      <div class="drop-icon"><svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9 14h6"/></svg></div>
+      <h3>Buka PDF yang ingin disusun</h3>
+      <p>Seret satu file PDF ke sini, atau klik untuk memilih.</p>
+      <input type="file" id="baseInput" accept="application/pdf,.pdf" hidden>
+      <div class="drop-actions"><button class="primary" type="button">Pilih PDF</button></div>
+      <p id="startMsg" style="margin-top:12px"></p>
+    </div>
+  </section>
+
+  <!-- langkah 2: editor -->
+  <div id="editor" hidden>
+    <section class="panel">
+      <div class="panel-title">
+        <svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+        <span id="docTitle">Dokumen</span>
+      </div>
+      <div class="settings">
+        <div class="row">
+          <div class="lbl">Nama file hasil</div>
+          <div class="ctrl"><input class="name" id="outName"></div>
+        </div>
+        <div class="row">
+          <div class="lbl">Folder tujuan</div>
+          <div class="ctrl">
+            <span class="path empty" id="outPath">Belum dipilih</span>
+            <button onclick="openPicker()">
+              <svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Pilih folder
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="doc-actions">
+        <span id="saveMsg" class="msg" style="border:0;padding:0;margin-right:auto;background:none"></span>
+        <button onclick="resetDoc()">Buka PDF lain</button>
+        <button class="primary" id="saveBtn" onclick="save()">
+          <svg class="i" viewBox="0 0 24 24"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M8 3v5h7"/><path d="M8 21v-7h8v7"/></svg>Simpan
+        </button>
+      </div>
+    </section>
+
+    <div class="toolbar">
+      <div>
+        <h2 id="countTitle">Halaman</h2>
+        <div class="hint">Klik <b>+</b> di antara halaman untuk menyisipkan. Seret halaman untuk mengubah urutan. Halaman sisipan ditandai biru.</div>
+      </div>
+    </div>
+    <section class="panel"><div class="seq" id="seq"></div></section>
+  </div>
+</main>
+
+<footer>Berjalan lokal di komputer ini. File asli tidak pernah diubah.</footer>
+
+<!-- dialog sisipkan -->
+<div class="modal-bg" id="insert">
+  <div class="modal">
+    <h2 id="insTitle">Sisipkan</h2>
+    <div class="body">
+      <div class="opt-row">Gambar ditempatkan
+        <span class="seg">
+          <label><input type="radio" name="layout" value="fit" checked>Dengan margin</label>
+          <label><input type="radio" name="layout" value="full">Penuh halaman</label>
+        </span>
+      </div>
+      <div id="insDrop">
+        <b>Seret PDF atau gambar ke sini</b>atau klik untuk memilih (JPG, PNG, PDF; boleh beberapa)
+        <input type="file" id="insInput" accept="application/pdf,.pdf,image/jpeg,image/png,.jpg,.jpeg,.png" multiple hidden>
+      </div>
+      <div class="items" id="items"></div>
+    </div>
+    <div class="modal-foot">
+      <span class="spacer"></span>
+      <button onclick="closeInsert()">Batal</button>
+      <button class="primary" id="insBtn" onclick="doInsert()" disabled>Sisipkan</button>
+    </div>
+  </div>
+</div>
+
+<!-- pemilih folder -->
+<div class="modal-bg" id="picker">
+  <div class="modal">
+    <h2>Pilih folder tujuan</h2>
+    <div class="nav">
+      <button class="icon" onclick="browse(cur.parent)" title="Naik satu folder">
+        <svg class="i" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+      </button>
+      <button class="icon" onclick="browse('~')" title="Folder home">
+        <svg class="i" viewBox="0 0 24 24"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10"/></svg>
+      </button>
+      <input id="pathInput" onkeydown="if(event.key==='Enter')browse(this.value)">
+    </div>
+    <div class="dirs" id="dirs"></div>
+    <div class="modal-foot">
+      <input id="newName" placeholder="Nama folder baru" onkeydown="if(event.key==='Enter')mkdir()">
+      <button onclick="mkdir()">Buat folder</button>
+      <span class="spacer"></span>
+      <button onclick="$('#picker').classList.remove('show')">Batal</button>
+      <button class="primary" onclick="choose()">Pilih folder ini</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="preview" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <h2 id="previewTitle"></h2>
+    <div class="body"><img id="previewImg" alt=""></div>
+    <div class="modal-foot"><span class="spacer"></span><button onclick="$('#preview').classList.remove('show')">Tutup</button></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+const svg = d => `<svg class="i" viewBox="0 0 24 24">${d}</svg>`;
+const ICON = {
+  folder: svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  zoom: svg('<circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/>'),
+  trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>'),
+  check: svg('<path d="m5 12 5 5 9-10"/>'),
+  alert: svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/>'),
+};
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function shortPath(p) { return '‎' + p.replace(/^\/home\/[^/]+/, '~') + '‎'; }
+
+const OFFLINE_MSG = 'Tidak terhubung ke aplikasi. Jalankan "bersihkan-scan" lalu muat ulang halaman ini.';
+async function request(url, opts) {
+  let r;
+  try { r = await fetch(url, opts); }
+  catch { $('#offline').classList.add('show'); throw new Error(OFFLINE_MSG); }
+  $('#offline').classList.remove('show');
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+const api = (url, body) => request(url, body === undefined ? {} :
+  { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const upload = (file, headers = {}) => request('/api/source', { method: 'POST',
+  headers: { 'X-Filename': encodeURIComponent(file.name), ...headers }, body: file });
+
+// ---------- state ----------
+let base = null;      // {id, name}
+let pages = [];       // [{id, n, src, isNew}]
+let outDir = store.get('susunDir', null) || store.get('globalDir', null);
+let dirty = false;
+window.onbeforeunload = e => { if (dirty) { e.preventDefault(); return ''; } };
+
+// ---------- buka PDF dasar ----------
+const drop = $('#drop');
+drop.onclick = () => $('#baseInput').click();
+$('#baseInput').onchange = e => { if (e.target.files[0]) openBase(e.target.files[0]); e.target.value = ''; };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => {
+  e.preventDefault(); drop.classList.remove('over');
+  const f = [...e.dataTransfer.files].find(f => /\.pdf$/i.test(f.name));
+  if (f) openBase(f); else $('#startMsg').textContent = 'File harus berupa PDF.';
+};
+
+async function openBase(file) {
+  $('#startMsg').innerHTML = '<span class="spinner" style="display:inline-block;vertical-align:-2px;margin-right:6px"></span>Membuka PDF…';
+  try {
+    const j = await upload(file);
+    if (j.image) throw new Error('File dasar harus PDF.');
+    base = { id: j.id, name: j.name };
+    pages = j.pages.map(p => ({ id: j.id, n: p.n, src: 'Asli hal. ' + p.n, isNew: false }));
+    $('#outName').value = j.name;
+    $('#docTitle').textContent = j.name;
+    $('#start').hidden = true; $('#editor').hidden = false;
+    $('#startMsg').textContent = '';
+    dirty = false;
+    renderDir(); renderSeq(); setSaveMsg('');
+  } catch (e) { $('#startMsg').textContent = e.message; }
+}
+function resetDoc() {
+  if (dirty && !confirm('Perubahan belum disimpan. Tetap buka PDF lain?')) return;
+  base = null; pages = []; dirty = false;
+  $('#editor').hidden = true; $('#start').hidden = false;
+}
+
+// ---------- daftar halaman ----------
+function renderSeq() {
+  const seq = $('#seq');
+  const added = pages.filter(p => p.isNew).length;
+  $('#countTitle').textContent = `${pages.length} halaman` + (added ? ` (${added} sisipan)` : '');
+  let h = '';
+  pages.forEach((p, i) => {
+    h += `<div class="unit"><div class="slot"><button data-ins="${i}" title="Sisipkan sebelum halaman ${i + 1}">${ICON.plus}</button></div>
+      <div class="tile ${p.isNew ? 'new' : ''}" draggable="true" data-i="${i}">
+        <img src="/api/thumb/${p.id}/${p.n}" alt="">
+        ${p.isNew ? '<span class="badge-new">Baru</span>' : ''}
+        <div class="tools">
+          <button data-zoom="${i}" title="Lihat besar">${ICON.zoom}</button>
+          <button class="del" data-del="${i}" title="Hapus halaman">${ICON.trash}</button>
+        </div>
+        <div class="meta"><div class="num">Hal. ${i + 1}</div><div class="src" title="${esc(p.src)}">${esc(p.src)}</div></div>
+      </div></div>`;
+  });
+  h += `<div class="unit"><div class="slot"><button data-ins="${pages.length}" title="Sisipkan di akhir">${ICON.plus}</button></div>
+    <button class="add-end" data-ins="${pages.length}">${ICON.plus}Tambah di akhir</button></div>`;
+  seq.innerHTML = h;
+}
+
+$('#seq').onclick = e => {
+  const t = e.target.closest('[data-ins],[data-zoom],[data-del]');
+  if (!t) return;
+  if (t.dataset.ins !== undefined) return openInsert(+t.dataset.ins);
+  if (t.dataset.zoom !== undefined) {
+    const p = pages[+t.dataset.zoom];
+    $('#previewTitle').textContent = `Halaman ${+t.dataset.zoom + 1} — ${p.src}`;
+    $('#previewImg').src = `/api/preview/${p.id}/${p.n}`;
+    return $('#preview').classList.add('show');
+  }
+  if (t.dataset.del !== undefined) {
+    if (pages.length === 1) return alert('Dokumen harus berisi minimal satu halaman.');
+    pages.splice(+t.dataset.del, 1); changed();
+  }
+};
+
+// seret untuk mengubah urutan
+let dragFrom = null;
+$('#seq').addEventListener('dragstart', e => {
+  const t = e.target.closest('.tile'); if (!t) return;
+  dragFrom = +t.dataset.i; t.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+});
+$('#seq').addEventListener('dragend', () => { dragFrom = null; document.querySelectorAll('.dragging,.over').forEach(x => x.classList.remove('dragging', 'over')); });
+$('#seq').addEventListener('dragover', e => {
+  const t = e.target.closest('.tile'); if (!t || dragFrom === null) return;
+  e.preventDefault();
+  document.querySelectorAll('.tile.over').forEach(x => x !== t && x.classList.remove('over'));
+  t.classList.add('over');
+});
+$('#seq').addEventListener('drop', e => {
+  const t = e.target.closest('.tile'); if (!t || dragFrom === null) return;
+  e.preventDefault();
+  const to = +t.dataset.i;
+  if (to !== dragFrom) { const [p] = pages.splice(dragFrom, 1); pages.splice(to, 0, p); changed(); }
+});
+
+function changed() { dirty = true; setSaveMsg(''); renderSeq(); }
+
+// ---------- dialog sisipkan ----------
+let insAt = 0, items = [], uploading = 0;
+function openInsert(at) {
+  insAt = at; items = []; uploading = 0;
+  $('#insTitle').textContent = at >= pages.length ? 'Sisipkan di akhir dokumen' : `Sisipkan sebelum halaman ${at + 1}`;
+  renderItems();
+  $('#insert').classList.add('show');
+}
+function closeInsert() { $('#insert').classList.remove('show'); }
+const insDrop = $('#insDrop');
+insDrop.onclick = () => $('#insInput').click();
+$('#insInput').onchange = e => { addInsertFiles(e.target.files); e.target.value = ''; };
+insDrop.ondragover = e => { e.preventDefault(); insDrop.classList.add('over'); };
+insDrop.ondragleave = () => insDrop.classList.remove('over');
+insDrop.ondrop = e => { e.preventDefault(); insDrop.classList.remove('over'); addInsertFiles(e.dataTransfer.files); };
+
+async function addInsertFiles(list) {
+  const layout = document.querySelector('input[name=layout]:checked').value;
+  for (const f of list) {
+    const it = { name: f.name, status: 'upload', range: '' };
+    items.push(it); uploading++; renderItems();
+    try {
+      const j = await upload(f, { 'X-Ref': base.id, 'X-Layout': layout });
+      Object.assign(it, { id: j.id, total: j.pages.length, image: !!j.image, status: 'ok' });
+    } catch (e) { it.status = 'err'; it.msg = e.message; }
+    uploading--; renderItems();
+  }
+}
+
+// "1-3, 5" -> [1,2,3,5]; kosong = semua halaman
+function parseRange(text, total) {
+  text = text.trim();
+  if (!text) return Array.from({ length: total }, (_, i) => i + 1);
+  const out = [];
+  for (const part of text.split(',')) {
+    const m = part.trim().match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+    if (!m) return null;
+    const a = +m[1], b = m[2] ? +m[2] : a;
+    if (a < 1 || b > total || a > b) return null;
+    for (let i = a; i <= b; i++) out.push(i);
+  }
+  return out;
+}
+
+function renderItems() {
+  const box = $('#items');
+  if (!items.length) box.innerHTML = '<div class="empty-note">Belum ada file dipilih.</div>';
+  else box.innerHTML = items.map((it, k) => {
+    let info, ctrl = '';
+    if (it.status === 'upload') info = '<span>Memproses…</span>';
+    else if (it.status === 'err') info = `<span class="err">${esc(it.msg)}</span>`;
+    else if (it.image) info = '<span>Gambar → 1 halaman</span>';
+    else {
+      const ok = parseRange(it.range, it.total) !== null;
+      info = `<span>PDF, ${it.total} halaman</span>`;
+      ctrl = `<input data-k="${k}" value="${esc(it.range)}" placeholder="Semua halaman" class="${ok ? '' : 'bad'}" title="Contoh: 1-3, 5 (kosongkan untuk semua halaman)">`;
+    }
+    const img = it.status === 'ok' ? `<img src="/api/thumb/${it.id}/1" alt="">` : '<img alt="">';
+    return `<div class="item">${img}<div class="info"><b title="${esc(it.name)}">${esc(it.name)}</b>${info}</div>${ctrl}
+      <button class="ghost icon" data-rm="${k}" title="Batalkan">${ICON.trash}</button></div>`;
+  }).join('');
+  updateInsBtn();
+}
+$('#items').oninput = e => {
+  const k = e.target.dataset.k; if (k === undefined) return;
+  items[k].range = e.target.value;
+  e.target.classList.toggle('bad', parseRange(e.target.value, items[k].total) === null);
+  updateInsBtn();
+};
+$('#items').onclick = e => {
+  const b = e.target.closest('[data-rm]'); if (!b) return;
+  items.splice(+b.dataset.rm, 1); renderItems();
+};
+function insertPlan() {
+  const ready = items.filter(it => it.status === 'ok');
+  if (uploading || !ready.length) return null;
+  const add = [];
+  for (const it of ready) {
+    const nums = parseRange(it.range, it.total);
+    if (!nums) return null;
+    nums.forEach(n => add.push({ id: it.id, n, isNew: true,
+      src: it.image || it.total === 1 ? it.name : `${it.name} hal. ${n}` }));
+  }
+  return add;
+}
+function updateInsBtn() {
+  const plan = insertPlan();
+  $('#insBtn').disabled = !plan;
+  $('#insBtn').textContent = plan ? `Sisipkan ${plan.length} halaman` : 'Sisipkan';
+}
+function doInsert() {
+  const plan = insertPlan(); if (!plan) return;
+  pages.splice(insAt, 0, ...plan);
+  closeInsert(); changed();
+}
+
+// ---------- simpan ----------
+function setSaveMsg(html, cls = '') {
+  const m = $('#saveMsg'); m.className = 'msg ' + cls; m.innerHTML = html;
+  m.style.cssText = 'border:0;padding:0;margin-right:auto;background:none';
+}
+async function save(overwrite = false) {
+  if (!outDir) { alert('Pilih dulu folder tujuan.'); return openPicker(); }
+  const name = $('#outName').value.trim();
+  if (!name) { alert('Isi dulu nama file hasil.'); return $('#outName').focus(); }
+  $('#saveBtn').disabled = true;
+  setSaveMsg('<span class="spinner"></span>Menyimpan…', 'info');
+  try {
+    const r = await api('/api/compose', { pages: pages.map(p => [p.id, p.n]), outdir: outDir, name, overwrite });
+    if (r.exists) {
+      setSaveMsg('');
+      if (confirm(`File sudah ada:\n${r.target}\n\nTimpa file tersebut?`)) { $('#saveBtn').disabled = false; return save(true); }
+    } else {
+      dirty = false;
+      setSaveMsg(`${ICON.check}Tersimpan (${r.pages} halaman): ${esc(shortPath(r.target))}`, 'ok');
+    }
+  } catch (e) { setSaveMsg(`${ICON.alert}${esc(e.message)}`, 'err'); }
+  $('#saveBtn').disabled = false;
+}
+
+// ---------- pemilih folder ----------
+let cur = null;
+function renderDir() {
+  const el = $('#outPath');
+  el.textContent = outDir ? shortPath(outDir) : 'Belum dipilih';
+  el.title = outDir || '';
+  el.classList.toggle('empty', !outDir);
+}
+async function browse(path) {
+  if (!path) return;
+  try {
+    cur = await api('/api/dirs?path=' + encodeURIComponent(path));
+    $('#pathInput').value = cur.path;
+    const d = $('#dirs'); d.innerHTML = '';
+    if (!cur.dirs.length) d.innerHTML = '<div class="none">Tidak ada subfolder</div>';
+    cur.dirs.forEach(name => {
+      const row = document.createElement('div');
+      row.innerHTML = ICON.folder + esc(name);
+      row.onclick = () => browse(cur.path + '/' + name);
+      d.appendChild(row);
+    });
+  } catch (e) { alert(e.message); }
+}
+function openPicker() {
+  $('#newName').value = '';
+  $('#picker').classList.add('show');
+  browse(outDir || '~/Documents');
+}
+async function mkdir() {
+  const name = $('#newName').value.trim();
+  if (!name) return $('#newName').focus();
+  try { const r = await api('/api/mkdir', { path: cur.path, name }); $('#newName').value = ''; browse(r.path); }
+  catch (e) { alert(e.message); }
+}
+function choose() {
+  outDir = cur.path; store.set('susunDir', outDir);
+  $('#picker').classList.remove('show');
+  renderDir(); setSaveMsg('');
+}
+
+if (location.protocol === 'file:') $('#offline').classList.add('show');
+else api('/api/ping').catch(() => {});
+</script>
+</body>
+</html>

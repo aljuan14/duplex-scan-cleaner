@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pembersih Scan</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="m9 14 2 2 4-4"/></svg></div>
+    <div class="brand"><b>Pembersih Scan</b><span>Hapus halaman kosong dari hasil scan bolak-balik</span></div>
+    <nav class="tabs"><a href="/" class="on">Bersihkan Scan</a><a href="/susun">Susun Halaman</a></nav>
+    <button class="ghost" onclick="shutdown()" title="Hentikan aplikasi di latar belakang">
+      <svg class="i" viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.4 6.4a8 8 0 1 0 11.2 0"/></svg>Matikan
+    </button>
+  </div>
+</header>
+
+<div id="offline">Tidak terhubung ke aplikasi. Jalankan <code>bersihkan-scan</code> di terminal
+  (atau buka <b>Pembersih Scan</b> dari menu aplikasi), lalu muat ulang halaman ini.</div>
+
+<main class="wrap">
+  <div class="intro">
+    <h1>Bersihkan PDF hasil scan</h1>
+    <p>Halaman yang hanya berisi bayangan lubang perforasi dibuang otomatis. Periksa hasilnya, lalu simpan dengan nama file yang sama ke folder pilihan Anda.</p>
+  </div>
+
+  <section class="panel">
+    <div class="panel-title">
+      <svg class="i" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+      Pengaturan
+    </div>
+    <div class="settings">
+      <div class="row">
+        <div class="lbl">Folder tujuan<small>Tempat file bersih disimpan</small></div>
+        <div class="ctrl">
+          <span class="path empty" id="globalPath">Belum dipilih</span>
+          <button onclick="openPicker('out')">
+            <svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Pilih folder
+          </button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="lbl">Terakhir dipakai</div>
+        <div class="ctrl chips" id="recent"></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Batas halaman kosong<small>Tinta di bawah batas ini = kosong</small></div>
+        <div class="ctrl">
+          <input type="range" id="thr" min="0" max="2" step="0.05">
+          <span class="val"><span id="thrVal"></span>%</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="lbl">Mode cepat</div>
+        <div class="ctrl">
+          <label class="switch"><input type="checkbox" id="auto"> Langsung simpan tanpa pemeriksaan</label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div id="drop">
+      <div class="drop-icon"><svg class="i" viewBox="0 0 24 24"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></div>
+      <h3>Seret file PDF atau folder ke sini</h3>
+      <p>Bisa banyak file sekaligus. Setiap file tetap diproses terpisah.</p>
+      <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple hidden>
+      <div class="drop-actions">
+        <button onclick="$('#fileInput').click()">
+          <svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Pilih file PDF
+        </button>
+        <button class="primary" id="srcBtn">
+          <svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Proses satu folder
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <div class="toolbar" id="toolbar" hidden>
+    <div>
+      <h2>Daftar file</h2>
+      <div class="hint"><span id="progress"></span>Klik halaman untuk mengubah simpan ⇄ buang. Arahkan kursor lalu klik ikon kaca pembesar untuk melihat besar.</div>
+    </div>
+    <div class="actions">
+      <button onclick="clearDone()">Hapus yang sudah disimpan</button>
+      <button class="primary" onclick="saveAll()">
+        <svg class="i" viewBox="0 0 24 24"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M8 3v5h7"/><path d="M8 21v-7h8v7"/></svg>Simpan semua
+      </button>
+    </div>
+  </div>
+  <div id="list"></div>
+</main>
+
+<footer>Berjalan lokal di komputer ini. File asli tidak pernah diubah.</footer>
+
+<div class="modal-bg" id="picker">
+  <div class="modal">
+    <h2 id="pickerTitle">Pilih folder tujuan</h2>
+    <div class="nav">
+      <button class="icon" onclick="browse(cur.parent)" title="Naik satu folder">
+        <svg class="i" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+      </button>
+      <button class="icon" onclick="browse('~')" title="Folder home">
+        <svg class="i" viewBox="0 0 24 24"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10"/></svg>
+      </button>
+      <input id="pathInput" onkeydown="if(event.key==='Enter')browse(this.value)">
+    </div>
+    <div class="dirs" id="dirs"></div>
+    <div class="modal-foot">
+      <input id="newName" placeholder="Nama folder baru" onkeydown="if(event.key==='Enter')mkdir()">
+      <button onclick="mkdir()">Buat folder</button>
+      <span class="spacer"></span>
+      <button onclick="closePicker()">Batal</button>
+      <button class="primary" id="chooseBtn" onclick="choose()">Pilih folder ini</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="preview" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <h2 id="previewTitle"></h2>
+    <div class="body"><img id="previewImg" alt=""></div>
+    <div class="modal-foot"><span class="spacer"></span><button onclick="preview.classList.remove('show')">Tutup</button></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+let globalDir = store.get('globalDir', null);
+let recent = store.get('recent', []);
+let threshold = store.get('threshold', 0.1);
+const files = [];           // {key, name, id, pages:[{n,ink,manual}], dir, status, msg, el}
+let cur = null;             // folder yang sedang dilihat di pemilih
+let pickerTarget = 'out';   // 'out' = folder tujuan umum, 'src' = folder sumber, atau objek file
+
+$('#thr').value = threshold;
+$('#thrVal').textContent = threshold.toFixed(2);
+$('#auto').checked = store.get('auto', false);
+$('#auto').onchange = e => store.set('auto', e.target.checked);
+$('#thr').oninput = e => {
+  threshold = +e.target.value;
+  $('#thrVal').textContent = threshold.toFixed(2);
+  store.set('threshold', threshold);
+  files.forEach(render);
+};
+
+const svg = d => `<svg class="i" viewBox="0 0 24 24">${d}</svg>`;
+const ICON = {
+  file: svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>'),
+  folder: svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+  zoom: svg('<circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/>'),
+  x: svg('<path d="M6 6l12 12M18 6 6 18"/>'),
+  check: svg('<path d="m5 12 5 5 9-10"/>'),
+  alert: svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/>'),
+  save: svg('<path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M8 3v5h7"/><path d="M8 21v-7h8v7"/>'),
+};
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function shortPath(p) { return '\u200E' + p.replace(/^\/home\/[^/]+/, '~') + '\u200E'; }
+
+function renderGlobal() {
+  const el = $('#globalPath');
+  el.textContent = globalDir ? shortPath(globalDir) : 'Belum dipilih';
+  el.title = globalDir || '';
+  el.classList.toggle('empty', !globalDir);
+  const r = $('#recent');
+  r.innerHTML = recent.length ? '' : '<span class="none">Belum ada</span>';
+  recent.forEach(p => {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.textContent = shortPath(p); b.title = p;
+    b.onclick = () => setGlobal(p);
+    r.appendChild(b);
+  });
+  files.forEach(render);
+}
+function remember(p) {
+  recent = [p, ...recent.filter(x => x !== p)].slice(0, 6);
+  store.set('recent', recent);
+}
+function setGlobal(p) { globalDir = p; store.set('globalDir', p); remember(p); renderGlobal(); }
+
+// ---------- pemilih folder ----------
+const OFFLINE_MSG = 'Tidak terhubung ke aplikasi. Jalankan "bersihkan-scan" lalu muat ulang halaman ini.';
+async function request(url, opts) {
+  let r;
+  try { r = await fetch(url, opts); }
+  catch { $('#offline').classList.add('show'); throw new Error(OFFLINE_MSG); }
+  $('#offline').classList.remove('show');
+  return r.json();
+}
+async function api(url, body) {
+  const j = await request(url, body === undefined ? {} :
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+async function browse(path) {
+  if (!path) return;
+  try {
+    cur = await api('/api/dirs?path=' + encodeURIComponent(path));
+    $('#pathInput').value = cur.path;
+    const d = $('#dirs'); d.innerHTML = '';
+    if (!cur.dirs.length) d.innerHTML = '<div class="none">Tidak ada subfolder</div>';
+    if (pickerTarget === 'src') {
+      const n = cur.pdfs.length;
+      $('#chooseBtn').textContent = n ? `Proses ${n} PDF di folder ini` : 'Tidak ada PDF di folder ini';
+      $('#chooseBtn').disabled = !n;
+      cur.pdfs.forEach(name => {
+        const row = document.createElement('div');
+        row.className = 'none'; row.innerHTML = ICON.file + esc(name);
+        d.appendChild(row);
+      });
+    }
+    cur.dirs.forEach(name => {
+      const row = document.createElement('div');
+      row.innerHTML = ICON.folder + esc(name);
+      row.onclick = () => browse(cur.path + '/' + name);
+      d.appendChild(row);
+    });
+  } catch (e) { alert(e.message); }
+}
+function openPicker(target) {
+  pickerTarget = target;
+  const file = typeof target === 'object' ? target : null;
+  $('#pickerTitle').textContent = target === 'src' ? 'Pilih folder berisi PDF hasil scan'
+    : file ? 'Folder tujuan khusus untuk: ' + file.name : 'Pilih folder tujuan';
+  $('#chooseBtn').textContent = 'Pilih folder ini';
+  $('#chooseBtn').disabled = false;
+  $('#newName').value = '';
+  $('#picker').classList.add('show');
+  const start = target === 'src' ? store.get('srcDir', null) : (file && file.dir) || globalDir || recent[0];
+  browse(start || '~/Documents');
+}
+function closePicker() { $('#picker').classList.remove('show'); }
+async function mkdir() {
+  const name = $('#newName').value.trim();
+  if (!name) return $('#newName').focus();
+  try { const r = await api('/api/mkdir', { path: cur.path, name }); $('#newName').value = ''; browse(r.path); }
+  catch (e) { alert(e.message); }
+}
+function choose() {
+  const p = cur.path;
+  if (pickerTarget === 'src') {
+    store.set('srcDir', p);
+    cur.pdfs.forEach(name => addItem(name, { path: p + '/' + name }));
+  } else if (pickerTarget === 'out') setGlobal(p);
+  else { pickerTarget.dir = p; remember(p); renderGlobal(); }
+  closePicker();
+}
+
+// ---------- file ----------
+const drop = $('#drop');
+drop.onclick = e => { if (!e.target.closest('button')) $('#fileInput').click(); };
+$('#srcBtn').onclick = () => openPicker('src');
+$('#fileInput').onchange = e => { addFiles(e.target.files); e.target.value = ''; };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = async e => {
+  e.preventDefault(); drop.classList.remove('over');
+  const entries = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (!entries.some(en => en.isDirectory)) return addFiles(e.dataTransfer.files);
+  for (const en of entries) {
+    if (en.isFile) addFiles([await entryFile(en)]);
+    else addFiles(await folderFiles(en));
+  }
+};
+const entryFile = en => new Promise((ok, fail) => en.file(ok, fail));
+// Ambil file PDF yang langsung ada di folder (subfolder seperti "bersih" tidak ikut)
+async function folderFiles(dirEntry) {
+  const reader = dirEntry.createReader(), all = [];
+  for (;;) {
+    const batch = await new Promise((ok, fail) => reader.readEntries(ok, fail));
+    if (!batch.length) break;
+    all.push(...batch);
+  }
+  const pdfs = all.filter(en => en.isFile && /\.pdf$/i.test(en.name))
+    .sort((a, b) => a.name.localeCompare(b.name, 'id', { numeric: true }));
+  return Promise.all(pdfs.map(entryFile));
+}
+
+let queue = Promise.resolve();
+function addFiles(list) {
+  [...list].filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf')
+    .forEach(f => addItem(f.name, { blob: f }));
+}
+function addItem(name, source) {
+  const file = { key: Math.random().toString(36).slice(2), name, pages: [], dir: null, status: 'antri' };
+  file.el = document.createElement('div'); file.el.className = 'card';
+  $('#list').appendChild(file.el);
+  files.push(file); render(file);
+  $('#toolbar').hidden = false;
+  updateProgress();
+  queue = queue.then(() => analyze(file, source)).then(updateProgress);
+}
+function updateProgress() {
+  const waiting = files.filter(f => f.status === 'antri' || f.status === 'analisis').length;
+  $('#progress').textContent = waiting ? `Menganalisis ${files.length - waiting}/${files.length} file selesai. ` : '';
+}
+
+async function analyze(file, source) {
+  file.status = 'analisis'; render(file); updateProgress();
+  try {
+    const j = source.path
+      ? await api('/api/analyze-path', { path: source.path })
+      : await request('/api/analyze', { method: 'POST', headers: { 'X-Filename': encodeURIComponent(file.name) }, body: source.blob });
+    if (j.error) throw new Error(j.error);
+    file.id = j.id; file.pages = j.pages.map(p => ({ ...p, manual: null }));
+    file.status = 'siap'; render(file);
+    if ($('#auto').checked) await save(file);
+  } catch (e) { file.status = 'error'; file.msg = e.message; render(file); }
+}
+
+const kept = p => p.manual !== null ? p.manual : p.ink > threshold;
+const outDir = f => f.dir || globalDir;
+
+function render(file) {
+  const el = file.el;
+  const keepN = file.pages.filter(kept).length, total = file.pages.length;
+  let h = `<div class="card-head"><span class="file-ico">${ICON.file}</span>
+    <span class="name">${esc(file.name)}${total ? `<small>${total} halaman</small>` : ''}</span>`;
+  if (total) h += `<span class="badge k">${keepN} disimpan</span><span class="badge d">${total - keepN} dibuang</span>`;
+  if (file.status === 'siap' || file.status === 'tersimpan')
+    h += `<button class="primary" data-act="save">${ICON.save}${file.status === 'tersimpan' ? 'Simpan ulang' : 'Simpan'}</button>`;
+  h += `<button class="ghost icon" data-act="remove" title="Hapus dari daftar">${ICON.x}</button></div>`;
+
+  if (total) {
+    const d = outDir(file);
+    h += `<div class="card-folder">${ICON.folder} Simpan ke
+      <span class="path ${d ? '' : 'empty'} ${file.dir ? 'own' : ''}" title="${esc(d || '')}">${d ? esc(shortPath(d)) : 'Belum dipilih'}</span>
+      ${file.dir ? '<span>(khusus file ini)</span>' : ''}
+      <button class="link" data-act="pick">Ubah untuk file ini</button>
+      ${file.dir ? '<button class="link" data-act="reset">Pakai folder umum</button>' : ''}</div>`;
+  }
+  if (file.status === 'antri') h += `<div class="msg info">Menunggu giliran…</div>`;
+  if (file.status === 'analisis') h += `<div class="msg info"><span class="spinner"></span>Menganalisis halaman…</div>`;
+  if (file.status === 'menyimpan') h += `<div class="msg info"><span class="spinner"></span>Menyimpan…</div>`;
+  if (file.status === 'error') h += `<div class="msg err">${ICON.alert}${esc(file.msg)}</div>`;
+  if (file.status === 'tersimpan') h += `<div class="msg ok">${ICON.check}${esc(file.msg)}</div>`;
+
+  if (total) {
+    h += '<div class="grid">';
+    file.pages.forEach((p, i) => {
+      const k = kept(p);
+      h += `<div class="pg ${k ? '' : 'drop'}" data-i="${i}" title="Tinta ${p.ink}%">
+        <img loading="lazy" src="/api/thumb/${file.id}/${p.n}" alt="Halaman ${p.n}">
+        <button class="zoom" data-zoom="${p.n}" title="Lihat besar">${ICON.zoom}</button>
+        <div class="meta"><span>Hal. ${p.n}</span><span class="tag">${k ? 'Simpan' : 'Buang'}</span></div>
+        ${p.manual !== null ? '<div class="manual">Manual</div>' : ''}</div>`;
+    });
+    h += '</div>';
+  }
+  el.innerHTML = h;
+  el.onclick = e => {
+    const zoom = e.target.closest('[data-zoom]');
+    if (zoom) return showPreview(file, +zoom.dataset.zoom);
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'save') return save(file);
+    if (act === 'remove') return removeFile(file);
+    if (act === 'pick') return openPicker(file);
+    if (act === 'reset') { file.dir = null; return render(file); }
+    const pg = e.target.closest('.pg');
+    if (pg) {
+      const p = file.pages[+pg.dataset.i];
+      const auto = p.ink > threshold;
+      const next = !kept(p);
+      p.manual = next === auto ? null : next;
+      if (file.status === 'tersimpan') { file.status = 'siap'; }
+      render(file);
+    }
+  };
+}
+
+function showPreview(file, n) {
+  $('#previewTitle').textContent = `${file.name} — halaman ${n}`;
+  $('#previewImg').src = `/api/preview/${file.id}/${n}`;
+  $('#preview').classList.add('show');
+}
+
+async function save(file, overwrite = false) {
+  const dir = outDir(file);
+  if (!dir) { alert('Pilih dulu folder tujuan penyimpanan.'); openPicker('out'); return; }
+  const keep = file.pages.filter(kept).map(p => p.n);
+  if (!keep.length) { alert('Semua halaman ditandai buang. Tandai minimal satu halaman untuk disimpan.'); return; }
+  const prev = file.status;
+  file.status = 'menyimpan'; render(file);
+  try {
+    const r = await api('/api/save', { id: file.id, keep, outdir: dir, overwrite });
+    if (r.exists) {
+      file.status = prev; render(file);
+      if (confirm(`File sudah ada:\n${r.target}\n\nTimpa file tersebut?`)) return save(file, true);
+      return;
+    }
+    file.status = 'tersimpan';
+    file.msg = `Tersimpan (${r.pages} dari ${r.total} halaman): ${r.target}`;
+  } catch (e) { file.status = 'error'; file.msg = e.message; }
+  render(file);
+}
+
+async function saveAll() {
+  for (const f of files) if (f.status === 'siap') await save(f);
+}
+function removeFile(file) {
+  if (file.id) api('/api/forget', { id: file.id }).catch(() => {});
+  file.el.remove();
+  files.splice(files.indexOf(file), 1);
+  $('#toolbar').hidden = !files.length;
+}
+function clearDone() { files.filter(f => f.status === 'tersimpan').forEach(removeFile); }
+
+async function shutdown() {
+  if (!confirm('Matikan aplikasi Pembersih Scan?')) return;
+  try { await api('/api/shutdown', {}); } catch {}
+  document.body.innerHTML = '<div style="text-align:center;margin-top:22vh;color:var(--muted)"><h2 style="color:var(--text);font-size:18px;margin:0 0 6px">Aplikasi sudah dimatikan</h2>Tab ini boleh ditutup. Jalankan lagi lewat <b>bersihkan-scan</b> atau menu aplikasi.</div>';
+}
+
+renderGlobal();
+if (location.protocol === 'file:') $('#offline').classList.add('show');
+else request('/api/ping').catch(() => {});
+</script>
+</body>
+</html>
